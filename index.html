@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barangay North Fairview eServices Portal</title>
+
+    <link rel="stylesheet" href="style.css?v=7">
+
+    <!-- Core engine external helper libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <!-- Top branding navbar -->
+    <header class="main-navbar">
+        <div class="nav-container">
+            <div class="logo-box">
+                <img id="navLogo" class="brgy-logo-img" alt="Logo">
+                <span class="brand-title">BRGY NORTH FAIRVIEW <strong>eServices</strong></span>
+            </div>
+            <div class="nav-controls">
+                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()">🌙<br>Mode</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero banner -->
+    <section class="hero-banner" id="heroBanner">
+        <div class="hero-content">
+            <h1>BARANGAY NORTH FAIRVIEW eSERVICES PORTAL</h1>
+            <p>Official Online Transaction &amp; Document Verification System</p>
+        </div>
+    </section>
+
+    <main class="dashboard-body">
+
+        <!-- ============ STEP 1: CHOOSE YOUR ROLE ============ -->
+        <section id="roleScreen">
+            <h2 class="section-heading">Who are you?</h2>
+            <div class="services-grid">
+                <div class="service-card" role="button" tabindex="0" onclick="chooseRole('applicant')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();chooseRole('applicant');}">
+                    <div class="card-icon-frame">👤</div>
+                    <h3>I am an Applicant</h3>
+                    <p>Resident or business owner applying for a Barangay Business Permit or Clearance.</p>
+                </div>
+                <div class="service-card" role="button" tabindex="0" onclick="chooseRole('admin')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();chooseRole('admin');}">
+                    <div class="card-icon-frame">🛡️</div>
+                    <h3>I am an Administrator</h3>
+                    <p>Authorized barangay personnel only. Login is required.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ APPLICANT VIEW ============ -->
+        <section id="applicantView" class="hidden">
+            <button type="button" class="back-link" onclick="showRoleScreen()">&larr; Change role</button>
+
+            <!-- Shown right after the applicant submits -->
+            <div id="confirmCard" class="verify-card hidden"></div>
+
+            <div class="services-grid">
+                <div class="service-card" role="button" tabindex="0" onclick="openApplicationForm('Business Permit')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openApplicationForm('Business Permit');}">
+                    <div class="card-icon-frame">🏢</div>
+                    <h3>Register Your Business</h3>
+                    <p>File online applications for new or renewal Barangay Business Permits. Fee depends on your business group: ₱1,000 to ₱5,000.</p>
+                </div>
+                <div class="service-card" role="button" tabindex="0" onclick="openApplicationForm('Pangkabuhayan')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openApplicationForm('Pangkabuhayan');}">
+                    <div class="card-icon-frame">🌱</div>
+                    <h3>Pangkabuhayan Permit</h3>
+                    <p>FREE of charge. For NEW small businesses under the Pangkabuhayan program only.</p>
+                </div>
+                <div class="service-card" role="button" tabindex="0" onclick="openApplicationForm('Barangay Clearance')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openApplicationForm('Barangay Clearance');}">
+                    <div class="card-icon-frame">📄</div>
+                    <h3>Business Clearance</h3>
+                    <p>Secure official clearances for legal, occupational, or business operations. ₱50 to ₱250 depending on the kind of clearance. FREE for Indigency, Medical and Financial only.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ ADMIN VIEW ============ -->
+        <section id="adminView" class="hidden">
+            <button type="button" class="back-link" onclick="showRoleScreen()">&larr; Change role (signs you out)</button>
+            <h2 class="section-heading">Admin Identity Verification</h2>
+
+            <div id="adminAuthForm" class="login-wrapper">
+                <p>Authorized Local Civil Servants Only.</p>
+                <label for="adminEmailInput">System Login Email:</label>
+                <input type="email" id="adminEmailInput" placeholder="officer@barangay.gov.ph" autocomplete="username">
+                <label for="adminPasswordInput">Account Password:</label>
+                <input type="password" id="adminPasswordInput" placeholder="--------" autocomplete="current-password">
+                <button type="button" class="btn-dark" onclick="authenticateAdmin()">Unlock Administrative Rights</button>
+                <div id="authFeedback"></div>
+            </div>
+
+            <div id="adminCoreControls" class="hidden">
+                <div class="admin-header-row">
+                    <h3>Administrator Panel <span id="roleBadge" class="role-badge"></span></h3>
+                    <button type="button" class="btn-danger" onclick="logoutAdmin()">Secure Sign Out</button>
+                </div>
+
+                <div class="admin-tabs" id="adminTabs">
+                    <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
+                    <button type="button" class="tab-btn" data-tab="apps">Applications</button>
+                    <button type="button" class="tab-btn" data-tab="trash" data-role="admin">Trash</button>
+                    <button type="button" class="tab-btn" data-tab="audit" data-role="admin">Audit Log</button>
+                    <button type="button" class="tab-btn" data-tab="settings" data-role="admin">Settings</button>
+                </div>
+
+                <!-- ===== DASHBOARD ===== -->
+                <div id="tab-dashboard" class="tab-pane">
+                    <div id="dashBox"><p class="muted">Loading…</p></div>
+                    <button type="button" class="btn-dark" id="btnDashRefresh" style="margin-top:10px">Refresh</button>
+                </div>
+
+                <!-- ===== APPLICATIONS ===== -->
+                <div id="tab-apps" class="tab-pane hidden">
+                    <div class="login-wrapper">
+                        <input type="text" id="fQ" placeholder="Search name or reference number (e.g., 26-0001)">
+                        <div class="filter-grid">
+                            <select id="fType"><option value="">All types</option><option value="Business Permit">Business Permit</option><option value="Pangkabuhayan">Pangkabuhayan</option><option value="Barangay Clearance">Barangay Clearance</option></select>
+                            <select id="fStage"><option value="">All stages</option><option value="submitted">Submitted</option><option value="under_review">Under review</option><option value="approved">Approved</option><option value="ready">Ready for pickup</option><option value="released">Released</option><option value="rejected">Rejected</option></select>
+                            <select id="fPay"><option value="">Paid and unpaid</option><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select>
+                            <div><label for="fFrom">From</label><input type="date" id="fFrom"></div>
+                            <div><label for="fTo">To</label><input type="date" id="fTo"></div>
+                        </div>
+                        <button type="button" class="btn-purple" id="btnSearch">Search</button>
+                        <div class="two-btn">
+                            <button type="button" class="btn-dark" id="btnClear">Clear filters</button>
+                            <button type="button" class="btn-dark" id="btnCsv">⬇️ Export CSV</button>
+                        </div>
+                    </div>
+                    <div id="searchFeedback"></div>
+                    <div id="adminList"></div>
+                    <div id="adminPager" class="pager"></div>
+                    <div id="adminDetails"></div>
+
+                    <!-- Printable certificate: ONLY visible to a logged-in, authorized staff member -->
+                    <div id="certNote" class="muted hidden"></div>
+                    <div id="certPanel" class="hidden">
+                        <div class="cert-actions">
+                            <button type="button" class="success-btn" onclick="printCertificate()">🖨️ Print</button>
+                            <button type="button" class="success-btn" onclick="downloadPDF()">⬇️ Export PDF</button>
+                        </div>
+                        <div class="cert-viewport" id="certViewport">
+                            <div id="printable-clearance"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== TRASH ===== -->
+                <div id="tab-trash" class="tab-pane hidden">
+                    <p class="muted">Deleted permits stay here. You can restore them, or delete them forever.</p>
+                    <div id="trashList"></div>
+                </div>
+
+                <!-- ===== AUDIT LOG ===== -->
+                <div id="tab-audit" class="tab-pane hidden">
+                    <p class="muted">Who did what, and when. This log cannot be edited.</p>
+                    <input type="text" id="auditFilter" placeholder="Filter by name, action or reference number">
+                    <div id="auditList"></div>
+                </div>
+
+                <!-- ===== SETTINGS ===== -->
+                <div id="tab-settings" class="tab-pane hidden">
+                    <div class="login-wrapper">
+                        <h4 class="mini-heading">Pictures check</h4>
+                        <p class="muted" style="margin:0 0 6px">Shows which pictures in config.js work.</p>
+                        <div id="picCheck"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Application modal -->
+<div id="formModal" class="modal-layer hidden">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <h3 id="modalFormTitle">Application Form</h3>
+                        <button type="button" class="close-modal-btn" onclick="closeFormModal()" aria-label="Close">&times;</button>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="hidden" id="documentType">
+                        <div id="draftNote" class="draft-note hidden">
+                            <span>📝 Your unfinished form was restored. Please attach your files again.</span>
+                            <button type="button" onclick="startOverDraft()">Start over</button>
+                        </div>
+
+                        <!-- ================= BUSINESS PERMIT FORM ================= -->
+                        <form id="bizForm" class="app-form hidden" autocomplete="off" novalidate>
+                            <p class="form-title">2026 BARANGAY BUSINESS CLEARANCE APPLICATION FORM</p>
+
+                            <div class="form-section" id="appTypeSection">
+                                <h4>Type of Application</h4>
+                                <div class="radio-row">
+                                    <label class="choice"><input type="radio" name="appType" value="New" checked onchange="updateRequirements()"> New</label>
+                                    <label class="choice"><input type="radio" name="appType" value="Renewal" onchange="updateRequirements()"> Renewal</label>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h4>Requirements <small>(attach a photo or PDF of each)</small></h4>
+
+                                <div id="reqNew" class="req-list">
+                                    <div class="req-item"><label>DTI or SEC Registration <em>(for Business Name)</em></label><input type="file" name="req_dti_sec" accept="image/*,.pdf" required></div>
+                                    <div class="req-item"><label>Lease Contract</label><input type="file" name="req_new_lease" accept="image/*,.pdf" required></div>
+                                    <div class="req-item"><label>Authorization from the Owner of the Business</label><input type="file" name="req_new_auth" accept="image/*,.pdf" required></div>
+                                    <div class="req-item"><label>HOA Clearance</label><input type="file" name="req_new_hoa" accept="image/*,.pdf" required></div>
+                                </div>
+
+                                <div id="reqPK" class="req-list hidden">
+                                    <div class="req-item"><label>Mayor's Permit</label><input type="file" name="req_pk_mayors" accept="image/*,.pdf" disabled required></div>
+                                    <div class="req-item"><label>Picture of the Establishment</label><input type="file" name="req_pk_photo" accept="image/*,.pdf" disabled required></div>
+                                    <div class="req-item"><label>Certificate of Application for Pangkabuhayan</label><input type="file" name="req_pk_cert" accept="image/*,.pdf" disabled required></div>
+                                </div>
+
+                                <div id="reqRenewal" class="req-list hidden">
+                                    <div class="req-item"><label>Previous Barangay Business Clearance</label><input type="file" name="req_prev_clearance" accept="image/*,.pdf" disabled required></div>
+                                    <div class="req-item"><label>Lease Contract</label><input type="file" name="req_ren_lease" accept="image/*,.pdf" disabled required></div>
+                                    <div class="req-item"><label>Authorization from the Owner of Business</label><input type="file" name="req_ren_auth" accept="image/*,.pdf" disabled required></div>
+                                    <div class="req-item"><label>Mayor's Permit 2024</label><input type="file" name="req_mayors_permit" accept="image/*,.pdf" disabled required></div>
+                                    <div class="req-item"><label>HOA Clearance</label><input type="file" name="req_ren_hoa" accept="image/*,.pdf" disabled required></div>
+                                </div>
+                            </div>
+
+                            <div class="form-section biz-only">
+                                <h4>Business Information</h4>
+                                <div class="form-grid">
+                                    <div><label>Date of Application</label><input type="date" name="dateApplication" id="bizDate" required></div>
+                                    <div><label>Business Trade Name</label><input type="text" name="tradeName" required></div>
+                                    <div><label>Type of Business</label><input type="text" name="businessType" required></div>
+                                    <div><label>Company Name</label><input type="text" name="companyName"></div>
+                                    <div class="span-2"><label>Business Location</label><input type="text" name="businessLocation" required></div>
+                                    <div><label>Contact No. (Business/Store)</label><input type="tel" name="contactBusiness"></div>
+                                    <div><label>Store Hours</label><input type="text" name="storeHours" placeholder="e.g., 8:00 AM - 8:00 PM"></div>
+                                    <div><label>Business Capital (Php)</label><input type="number" name="capital" min="0" step="0.01" required></div>
+                                    <div><label>No. of Employees</label><input type="number" name="employees" min="0" step="1"></div>
+                                    <div class="span-2" id="bizGroupBox">
+                                        <details class="guide-box" id="groupGuide">
+                                            <summary>📋 Not sure which group? Tap to see the list of businesses</summary>
+                                            <p class="muted" style="margin:8px 0">Find your business, then tap it. The group is chosen for you.</p>
+                                            <input type="search" id="guideSearch" placeholder="Search (e.g. sari-sari, salon, pharmacy)" autocomplete="off">
+                                            <div id="guideList"></div>
+                                        </details>
+                                        <label for="bizGroup">Business Group (sets your fee)</label>
+                                        <select id="bizGroup" name="bizGroup" required>
+                                            <option value="">-- Choose the group --</option>
+                                            <option value="A">Group A - ₱1,000.00</option>
+                                            <option value="B">Group B - ₱2,000.00</option>
+                                            <option value="C">Group C - ₱3,000.00</option>
+                                            <option value="D">Group D - ₱4,000.00</option>
+                                            <option value="E">Group E - ₱5,000.00</option>
+                                            <option value="NC">Business not otherwise categorized - ₱2,000.00</option>
+                                            <option value="REG">Regulated business (resolution required) - ₱2,000.00</option>
+                                        </select></div>
+                                    <div class="span-2" id="bizCategoryBox"><label for="bizCategory">Kind or Nature of Business</label>
+                                        <select id="bizCategory" name="bizCategory"><option value="">-- Choose a group first --</option></select></div>
+                                    <div class="span-2"><label for="natureDetail">Describe your business activity <small id="natureHint">(optional)</small></label>
+                                        <textarea id="natureDetail" name="natureOfBusiness" rows="2"></textarea>
+                                        <p class="muted hidden" id="regNote" style="margin:6px 0 0">A barangay resolution is required for regulated businesses.</p></div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h4>Owner Information</h4>
+                                <div class="form-grid three">
+                                    <div><label>First Name</label><input type="text" name="ownerFirst" required></div>
+                                    <div><label>Middle Name</label><input type="text" name="ownerMiddle"></div>
+                                    <div><label>Last Name</label><input type="text" name="ownerLast" required></div>
+                                </div>
+                                <div class="form-grid biz-only">
+                                    <div class="span-2"><label>Home Address of Business Owner</label><input type="text" name="ownerAddress" required></div>
+ <div><label>Owner's Contact No.</label><input type="tel" name="ownerContact" required></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section pk-only hidden">
+                                <h4>Kind or Nature of Business</h4>
+                                <label for="pkNature">Type / Nature of Business</label>
+                                <input type="text" id="pkNature" name="pkNature" placeholder="e.g., Sari-sari store, carinderia, e-load" disabled required>
+                            </div>
+ 
+                            <div class="form-section biz-only">
+                                <h4>Registration Details</h4>
+                                <div class="form-grid">
+                                    <div><label>Taxpayer's Identification Number (TIN)</label><input type="text" name="tin"></div>
+                                    <div><label>DTI (Business Name) Registration No.</label><input type="text" name="dtiNo"></div>
+                                    <div><label>DTI Registration Date</label><input type="date" name="dtiDate"></div>
+                                    <div><label>Employer's SSS Number <small>(if employer)</small></label><input type="text" name="sssNo"></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section biz-only">
+                                <h4>Premises &amp; Security</h4>
+                                <div class="form-grid">
+                                    <div>
+                                        <label>Do you have a CCTV system?</label>
+                                        <div class="radio-row">
+                                            <label class="choice"><input type="radio" name="cctv" value="Yes"> Yes</label>
+                                            <label class="choice"><input type="radio" name="cctv" value="No" checked> No</label>
+                                        </div>
+                                    </div>
+                                    <div><label>Number of CCTV Cameras Installed</label><input type="number" name="cctvCount" min="0" step="1"></div>
+                                    <div>
+                                        <label>Is the business using a signboard?</label>
+                                        <div class="radio-row">
+                                            <label class="choice"><input type="radio" name="signboard" value="Yes"> Yes</label>
+                                            <label class="choice"><input type="radio" name="signboard" value="No" checked> No</label>
+                                        </div>
+                                    </div>
+                                    <div><label>Area of Signboard</label><input type="text" name="signboardArea" placeholder="e.g., 2 sq. m."></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section biz-only">
+                                <h4>If Business Establishment is Rented</h4>
+                                <div class="form-grid three">
+                                    <div><label>Since When</label><input type="text" name="rentSince"></div>
+                                    <div><label>Monthly Rental (Php)</label><input type="number" name="rentMonthly" min="0" step="0.01"></div>
+                                    <div><label>From Whom</label><input type="text" name="rentFrom"></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section">
+                                <p class="legal-text">This Application and/or Barangay Business Permit/License does not exempt Applicants from complying with the requirements and/or securing the Permits/Licenses by other Agencies/Authorities required by existing Laws/Ordinance/Rules &amp; Regulations and hereby undertake to comply thereof.</p>
+                                <p class="legal-text">I/We hereby certify that the statement/information given above are true and correct to my/our knowledge.</p>
+                                <label class="choice"><input type="checkbox" name="certify" required> I agree and certify the above.</label>
+                                <label class="choice" style="margin-top:10px"><input type="checkbox" name="consent" required> I consent to the collection and processing of my personal data under the Data Privacy Act of 2012 (RA 10173).</label>
+                                <label style="margin-top:12px">Signature Over Printed Name of Applicant/Representative</label>
+                                <input type="text" name="signature" placeholder="Type your full name" required>
+                            </div>
+                        </form>
+ 
+                        <!-- ================= BARANGAY CLEARANCE FORM ================= -->
+                        <form id="clrForm" class="app-form hidden" autocomplete="off" novalidate>
+                            <p class="form-title">APPLICATION FOR BARANGAY CLEARANCE</p>
+                            <div class="form-section">
+                                <label class="choice"><input type="checkbox" name="renew" value="Yes"> Renew</label>
+                            </div>
+ 
+                            <div class="form-section">
+                                <h4>Head of the Family</h4>
+                                <div class="form-grid three">
+                                    <div><label>First Name</label><input type="text" name="headFirst" required></div>
+                                    <div><label>Middle Name</label><input type="text" name="headMiddle"></div>
+                                    <div><label>Last Name</label><input type="text" name="headLast" required></div>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="span-2"><label>Address</label><input type="text" name="headAddress" required></div>
+                                    <div><label>Age</label><input type="number" name="headAge" min="0" max="130"></div>
+                                    <div><label>Year of Residence</label><input type="text" name="headResidence"></div>
+                                       <div><label>Civil Status</label><select name="headCivil"><option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option></select></div>
+                                    <div><label>Gender</label><select name="headGender"><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+                                    <div><label>Birthday</label><input type="date" name="headBirthday"></div>
+                                    <div><label>Birthplace</label><input type="text" name="headBirthplace"></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section">
+                                <h4>Name of Applicant / Requesting Party</h4>
+                                <div class="form-grid three">
+                                    <div><label>First Name</label><input type="text" name="appFirst" required></div>
+                                    <div><label>Middle Name</label><input type="text" name="appMiddle"></div>
+                                    <div><label>Last Name</label><input type="text" name="appLast" required></div>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="span-2"><label>Address</label><input type="text" name="appAddress" required></div>
+                                    <div><label>Birthplace</label><input type="text" name="appBirthplace" required></div>
+                                    <div><label>Gender</label><select name="appGender" required><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+                                    <div><label>Civil Status</label><select name="appCivil" required><option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option></select></div>
+                                    <div><label>Age</label><input type="number" name="appAge" min="0" max="130" required></div>
+                                    <div><label>Birthday</label><input type="date" name="appBirthday" required></div>
+                                    <div><label>Contact No.</label><input type="tel" name="appContact" required></div>
+                                    <div><label>Religion</label><input type="text" name="appReligion"></div>
+                                    <div><label>Citizenship</label><input type="text" name="appCitizenship" value="Filipino" required></div>
+                                    <div><label>Precinct No.</label><input type="text" name="appPrecinct"></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section">
+                                <h4>Purpose <small id="purposeFeeNote">(Indigency, Medical and Financial are FREE)</small></h4>
+                                <div class="check-grid">
+                                    <label class="choice"><input type="checkbox" name="purpose" value="Residency"> Residency <small class="fee-tag" data-purpose="Residency"></small></label>
+                                    <label class="choice"><input type="checkbox" name="purpose" value="Clearance"> Clearance <small class="fee-tag" data-purpose="Clearance"></small></label>
+                                    <label class="choice"><input type="checkbox" name="purpose" value="Non Resident"> Non Resident <small class="fee-tag" data-purpose="Non Resident"></small></label>
+                                    <label class="choice"><input type="checkbox" name="purpose" value="Indigency"> Indigency <small class="fee-tag" data-purpose="Indigency"></small></label>
+                                    <label class="choice"><input type="checkbox" name="purpose" value="Medical"> Medical <small class="fee-tag" data-purpose="Medical"></small></label>
+                                    <label class="choice"><input type="checkbox" name="purpose" value="Financial"> Financial <small class="fee-tag" data-purpose="Financial"></small></label>
+                                </div>
+                                <div class="form-grid" style="margin-top:12px">
+                                    <div><label>Brgy. Clearance For</label><input type="text" name="clearanceFor"></div>
+                                    <div><label>To Agency / Office</label><input type="text" name="toAgency"></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section">
+                                <h4>Patient / Student <small>(only if for Medical / Financial)</small></h4>
+                                <div class="form-grid">
+                                    <div class="span-2"><label>Patient / Student Name</label><input type="text" name="patName"></div>
+                                    <div><label>Age</label><input type="number" name="patAge" min="0" max="130"></div>
+                                    <div><label>Civil Status</label><input type="text" name="patCivil"></div>
+                                    <div><label>Precinct No.</label><input type="text" name="patPrecinct"></div>
+                                    <div><label>Gender</label><input type="text" name="patGender"></div>
+                                    <div><label>Birthday</label><input type="date" name="patBirthday"></div>
+                                    <div><label>Birthplace</label><input type="text" name="patBirthplace"></div>
+                                    <div class="span-2"><label>Relation to the Applicant</label><input type="text" name="patRelation"></div>
+                                </div>
+                            </div>
+ 
+                            <div class="form-section">
+                                <label class="choice" style="margin-bottom:14px"><input type="checkbox" name="consent" required> I consent to the collection and processing of my personal data under the Data Privacy Act of 2012 (RA 10173).</label>
+                                <label>Applicant Signature</label>
+                                <input type="text" name="signature" placeholder="Type your full name" required>
+                            </div>
+                        </form>
+ 
+                        <div id="formError" class="form-error hidden"></div>
+                            <button type="button" id="submitBtn" class="action-submit-btn" onclick="processApplication()">Proceed to GCash / Maya Checkout</button>
+                        <button type="button" class="cancel-form-btn" onclick="closeFormModal()">Close form</button>
+                    </div>
+                </div>
+            </div>
+    </main>
+ 
+    <!-- Confirm modal (delete / delete forever / restore) -->
+    <div id="confirmModal" class="modal-layer hidden">
+        <div class="modal-card" style="max-width:420px">
+            <div class="modal-header" id="confirmHead" style="background:#c62828">
+                <h3 id="confirmTitle"></h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMsg"></p>
+                <p id="confirmWarn"></p>
+                <div id="confirmErr"></div>
+                <button type="button" id="confirmBtn" class="btn-danger" style="width:100%;padding:12px;font-size:14px"></button>
+                <button type="button" class="btn-dark" style="margin-top:8px" onclick="closeConfirm()">Cancel</button>
+            </div>
+        </div>
+    </div>
+ 
+    <!-- Reject modal -->
+    <div id="rejectModal" class="modal-layer hidden">
+        <div class="modal-card" style="max-width:420px">
+            <div class="modal-header"><h3>Reject this application</h3></div>
+            <div class="modal-body">
+                <label for="rejectReason">Reason (the applicant will be told at the Barangay Hall)</label>
+                <textarea id="rejectReason" rows="3" placeholder="e.g., Lease contract is unreadable"></textarea>
+                <div id="rejectErr"></div>
+                <button type="button" id="rejectBtn" class="btn-danger" style="width:100%;padding:12px;font-size:14px">Reject application</button>
+                <button type="button" class="btn-dark" style="margin-top:8px" onclick="closeReject()">Cancel</button>
+            </div>
+        </div>
+    </div>
+ 
+    <footer class="site-footer">
+        <div class="site-qr-box"><div id="siteQr"></div></div>
+        <p class="muted" style="margin:6px 0 20px">Scan to open this portal on your phone</p>
+        <p class="footer-address">Barangay Hall, North Fairview, Quezon City, District V, Metro Manila, Philippines</p>
+        <p class="footer-copy">&copy; 2026 Barangay North Fairview eServices Portal &bull; All Rights Reserved.</p>
+    </footer>
+ 
+    <script>
+/* shows a red message if anything breaks, so we can see what went wrong */
+window.addEventListener("error", function (e) {
+    var b = document.getElementById("errBanner");
+    if (!b) { b = document.createElement("div"); b.id = "errBanner";
+      b.style.cssText = "position:fixed;z-index:99999;left:0;right:0;top:0;background:#b00020;color:#fff;padding:8px 12px;font:13px sans-serif";
+      document.body ? document.body.appendChild(b) : document.documentElement.appendChild(b); }
+      b.textContent = "Error: " + e.message + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "");
+});
+window.addEventListener("load", function () {
+    if (typeof window.chooseRole !== "function" && !document.getElementById("errBanner")) {
+        var b = document.createElement("div");
+        b.style.cssText = "position:fixed;z-index:99999;left:0;right:0;top:0;background:#b00020;color:#fff;padding:8px 12px;font:13px sans-serif";
+        b.textContent = "A script file did not load. Check that index.html, style.css, config.js and script-1.js to script-6.js are in the SAME folder.";
+        document.body.appendChild(b);
+    }
+});
+</script>
+    <script src="config.js?v=7"></script>
+    <script src="script-1.js?v=7"></script>
+    <script src="script-2.js?v=7"></script>
+    <script src="script-3.js?v=7"></script>
+    <script src="script-4.js?v=7"></script>
+    <script src="script-5.js?v=7"></script>
+    <script src="script-6.js?v=7"></script>
+</body>
+</html>
+ 
